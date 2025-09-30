@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: it-consulting-webapp
+  namespace: it-consulting-app
+  labels:
+    app: it-consulting-webapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: it-consulting-webapp
+  template:
+    metadata:
+      labels:
+        app: it-consulting-webapp
+    spec:
+      containers:
+      - name: it-consulting-webapp
+        image: it-consulting-webapp:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5

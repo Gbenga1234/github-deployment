@@ -1,0 +1,130 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: it-consulting-app
+  labels:
+    name: it-consulting-app
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: it-consulting-webapp
+  namespace: it-consulting-app
+  labels:
+    app: it-consulting-webapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: it-consulting-webapp
+  template:
+    metadata:
+      labels:
+        app: it-consulting-webapp
+    spec:
+      containers:
+      - name: it-consulting-webapp
+        image: it-consulting-webapp:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: it-consulting-webapp-service
+  namespace: it-consulting-app
+  labels:
+    app: it-consulting-webapp
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: it-consulting-webapp
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: it-consulting-webapp-ingress
+  namespace: it-consulting-app
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - it-consulting.yourdomain.com
+    secretName: it-consulting-tls
+  rules:
+  - host: it-consulting.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: it-consulting-webapp-service
+            port:
+              number: 80
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: it-consulting-webapp-hpa
+  namespace: it-consulting-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: it-consulting-webapp
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
